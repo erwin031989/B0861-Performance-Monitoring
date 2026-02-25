@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B0861 Branch Performance System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .table-wrapper { width: 100%; overflow-x: auto; border-radius: 1rem; border: 1px solid #e2e8f0; background: white; }
+        table { min-width: 850px; width: 100%; border-collapse: collapse; }
+        .nav-active { background-color: #2563eb !important; color: white !important; }
+        .chart-container { position: relative; height: 380px; width: 100%; }
+        .badge-success { background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; border: 1px solid #bbf7d0; }
+        .badge-pending { background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; border: 1px solid #fecaca; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row min-h-screen">
+
+    <aside class="w-full md:w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col border-r border-slate-800">
+        <div class="p-6 flex-1">
+            <div class="mb-10 flex flex-col items-center">
+                <div id="sidebar-logo-container" class="w-full flex justify-center">
+                    <p id="no-logo-text" class="text-[10px] text-slate-500 italic">No Logo Uploaded</p>
+                    <img id="sidebar-logo" src="" alt="Logo" class="hidden w-full h-auto object-contain px-2 max-h-24">
+                </div>
+                <div class="h-px w-full bg-slate-800 mt-6"></div>
+            </div>
+            
+            <nav class="space-y-2" id="mainNav">
+                <button onclick="showPage('dashboard')" id="btn-dashboard" class="nav-active w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-left transition-all">Dashboard</button>
+                <button onclick="showPage('monthly')" id="btn-monthly" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 font-semibold text-left transition-all">Monthly Trends</button>
+                <button onclick="showPage('target-trend')" id="btn-target-trend" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 font-semibold text-left transition-all">Target Management</button>
+                <button onclick="showPage('target-release')" id="btn-target-release" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 font-semibold text-left transition-all">Target Release</button>
+                <button onclick="showPage('data-entry')" id="btn-data-entry" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 font-semibold text-left transition-all">Data Entry</button>
+                <button onclick="showPage('manage-mfo')" id="btn-manage-mfo" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 font-semibold text-left transition-all">Settings</button>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="flex-1 p-6 md:p-10 overflow-y-auto">
+        <div id="page-dashboard" class="page-content space-y-8">
+            <header>
+                <h1 class="text-4xl font-extrabold tracking-tight uppercase">B0861 STO. TOMAS</h1>
+                <div class="mt-2 flex items-center gap-2 bg-white px-3 py-1 rounded-lg border shadow-sm w-fit">
+                    <input type="date" id="dashDate" onchange="renderDashboard()" class="font-bold text-blue-600 outline-none">
+                </div>
+            </header>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="statsRibbon"></div>
+            <div class="table-wrapper shadow-sm">
+                <table class="text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-400 font-bold uppercase text-[10px] border-b">
+                        <tr>
+                            <th class="px-6 py-4">MFO Name</th>
+                            <th class="px-6 py-4 text-center">Clients</th>
+                            <th class="px-6 py-4 text-right">Portfolio</th>
+                            <th class="px-6 py-4 text-right">Disbursement</th>
+                            <th class="px-6 py-4 text-right">Collection</th>
+                            <th class="px-6 py-4 text-right">Revenue</th>
+                            <th class="px-6 py-4 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashTableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-3xl border shadow-sm"><div class="chart-container"><canvas id="barChart"></canvas></div></div>
+                <div class="bg-white p-6 rounded-3xl border shadow-sm"><div class="chart-container"><canvas id="pieChart"></canvas></div></div>
+            </div>
+        </div>
+
+        <div id="page-target-release" class="page-content hidden space-y-8">
+            <div class="flex justify-between items-center">
+                <h1 class="text-4xl font-extrabold">Target Release</h1>
+                <input type="month" id="releaseFilterMonth" onchange="renderTargetRelease()" class="p-2 border rounded-xl font-bold text-blue-600">
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-1 bg-white p-6 rounded-3xl border shadow-sm h-fit">
+                    <h3 class="text-lg font-bold mb-4">Set Monthly Release Goal</h3>
+                    <form id="releaseForm" class="space-y-4">
+                        <input type="month" id="rMonth" required class="w-full p-3 bg-slate-50 border rounded-xl">
+                        <select id="rMFO" required class="w-full p-3 bg-slate-50 border rounded-xl"></select>
+                        <input type="number" id="rAmount" placeholder="Target Disbursement (₱)" required class="w-full p-3 border rounded-xl">
+                        <button type="submit" class="w-full py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Set Release Target</button>
+                    </form>
+                </div>
+                
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white p-6 rounded-3xl border shadow-sm">
+                        <h3 class="text-xs font-black uppercase text-slate-400 mb-4">Release Efficiency (Actual vs Target)</h3>
+                        <div class="chart-container"><canvas id="releaseChart"></canvas></div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-3xl border shadow-sm">
+                        <h3 class="text-xs font-black uppercase text-blue-600 mb-4">Consolidated Performance Summary</h3>
+                        <div class="table-wrapper">
+                            <table class="text-sm text-left">
+                                <thead class="bg-slate-900 text-white text-[10px] uppercase font-bold border-b">
+                                    <tr>
+                                        <th class="px-6 py-3">MFO Name</th>
+                                        <th class="px-6 py-3 text-right">Daily Avg (Selected Month)</th>
+                                        <th class="px-6 py-3 text-right">Monthly Total Actual</th>
+                                        <th class="px-6 py-3 text-right">Monthly Target</th>
+                                        <th class="px-6 py-3 text-center">Variance</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="consolidatedReleaseBody" class="divide-y divide-slate-100"></tbody>
+                                <tfoot id="consolidatedReleaseFoot" class="bg-slate-50 font-black"></tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table class="text-sm text-left">
+                            <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-500 border-b">
+                                <tr>
+                                    <th class="px-6 py-3">Month</th>
+                                    <th class="px-6 py-3">MFO Name</th>
+                                    <th class="px-6 py-3 text-right">Goal Amount</th>
+                                    <th class="px-6 py-3 text-center">Status</th>
+                                    <th class="px-6 py-3 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="releaseTableBody" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-target-trend" class="page-content hidden space-y-8">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <h1 class="text-4xl font-extrabold">Target Management</h1>
+                <div class="flex bg-slate-200 p-1 rounded-xl">
+                    <button onclick="switchTargetMode('annual')" id="tab-annual" class="px-4 py-2 rounded-lg text-sm font-bold transition-all bg-white shadow text-blue-600">Annual Target</button>
+                    <button onclick="switchTargetMode('monthly')" id="tab-monthly" class="px-4 py-2 rounded-lg text-sm font-bold transition-all text-slate-500">Monthly Target</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 xl:grid-cols-4 gap-8">
+                <div class="xl:col-span-1 bg-white p-6 rounded-3xl border shadow-sm h-fit">
+                    <h3 id="targetFormTitle" class="text-lg font-bold mb-4">Set Goal</h3>
+                    <form id="targetForm" class="space-y-4">
+                        <div id="targetDateContainer"></div>
+                        <select id="tMFO" required class="w-full p-2 bg-slate-50 border rounded-lg"></select>
+                        <input type="number" id="tClients" placeholder="Clients Target" required class="w-full p-2 border rounded-lg">
+                        <input type="number" id="tPort" placeholder="Portfolio Target" required class="w-full p-2 border rounded-lg">
+                        <input type="number" id="tColl" placeholder="Collection Target" required class="w-full p-2 border rounded-lg">
+                        <input type="number" id="tDisb" placeholder="Disbursement Target" required class="w-full p-2 border rounded-lg">
+                        <button type="submit" class="w-full py-3 bg-slate-900 text-white font-bold rounded-xl shadow-md">Save Target</button>
+                    </form>
+                </div>
+                <div class="xl:col-span-3 space-y-6">
+                    <div class="bg-white p-6 rounded-3xl border shadow-sm">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 id="chartTitle" class="text-xs font-black uppercase text-slate-400">Goals vs Performance</h3>
+                            <select id="targetMetric" onchange="refreshTargetTrend()" class="text-xs font-bold border rounded px-3 py-1 bg-blue-50 border-blue-200 text-blue-700 outline-none">
+                                <option value="port">Portfolio (₱)</option>
+                                <option value="clients">Active Clients</option>
+                                <option value="coll">Collection (₱)</option>
+                                <option value="disb">Disbursement (₱)</option>
+                            </select>
+                        </div>
+                        <div class="chart-container"><canvas id="targetVsActualChart"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-3xl border shadow-sm overflow-hidden">
+                        <div class="table-wrapper">
+                            <table class="text-sm text-left">
+                                <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-500">
+                                    <tr>
+                                        <th class="px-6 py-3" id="targetTablePeriodLabel">Period</th>
+                                        <th class="px-6 py-3">MFO Name</th>
+                                        <th class="px-6 py-3 text-right">Target Value</th>
+                                        <th class="px-6 py-3 text-right">Actual Value</th>
+                                        <th class="px-6 py-3 text-center">Status</th>
+                                        <th class="px-6 py-3 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="targetTableBody" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-monthly" class="page-content hidden space-y-8">
+            <h1 class="text-4xl font-extrabold tracking-tight">Monthly Performance</h1>
+            <div class="bg-white p-8 rounded-[2rem] border shadow-xl shadow-slate-100">
+                <div class="chart-container"><canvas id="trendChart"></canvas></div>
+            </div>
+        </div>
+
+        <div id="page-manage-mfo" class="page-content hidden space-y-10 max-w-4xl mx-auto pt-10">
+            <div class="bg-white p-10 rounded-[2.5rem] shadow-xl border">
+                <h2 class="text-3xl font-black mb-8">MFO Directory</h2>
+                <div class="flex gap-2 mb-8"><input type="text" id="newMfoInput" class="flex-1 p-4 bg-slate-50 border rounded-2xl" placeholder="Full Name"><button onclick="addMfo()" class="px-6 py-4 bg-slate-900 text-white font-bold rounded-2xl">Add</button></div>
+                <div id="mfoList" class="space-y-3"></div>
+            </div>
+            <button onclick="resetAllData()" class="w-full py-4 bg-red-600 text-white font-black rounded-2xl">Delete All System Data</button>
+        </div>
+
+        <div id="page-data-entry" class="page-content hidden max-w-2xl mx-auto pt-10">
+            <div class="bg-white p-10 rounded-[2.5rem] shadow-xl border">
+                <h2 class="text-3xl font-black mb-6">Daily Reporting</h2>
+                <form id="entryForm" class="grid grid-cols-2 gap-6">
+                    <input type="date" id="fDate" required class="p-4 bg-slate-50 border rounded-2xl">
+                    <select id="fMFO" required class="p-4 bg-slate-50 border rounded-2xl"></select>
+                    <input type="number" id="fClients" placeholder="Clients" required class="p-4 border rounded-2xl">
+                    <input type="number" id="fPort" placeholder="Portfolio" required class="p-4 border rounded-2xl">
+                    <input type="number" id="fDisb" placeholder="Disbursement" required class="p-4 border rounded-2xl">
+                    <input type="number" id="fColl" placeholder="Collection" required class="p-4 border rounded-2xl">
+                    <input type="number" id="fRev" placeholder="Revenue" required class="col-span-2 p-4 border rounded-2xl">
+                    <button type="submit" class="col-span-2 py-5 bg-blue-600 text-white font-black rounded-2xl">Submit Entry</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let mfos = JSON.parse(localStorage.getItem('b0861_mfos')) || ["Danice Sheena Mae Celis", "Richard Rosimo", "Mikka Jeil Soriano", "Prince Luciñada"];
+        let logs = JSON.parse(localStorage.getItem('b0861_logs')) || [];
+        let annualTargets = JSON.parse(localStorage.getItem('b0861_annual_targets')) || [];
+        let monthlyTargets = JSON.parse(localStorage.getItem('b0861_monthly_targets')) || [];
+        let releaseTargets = JSON.parse(localStorage.getItem('b0861_release_targets')) || [];
+        let targetMode = 'annual';
+        let chartBar, chartPie, chartTrend, chartTarget, chartRelease;
+
+        // Set default filter for Target Release
+        document.getElementById('releaseFilterMonth').value = new Date().toISOString().substring(0,7);
+
+        function showPage(id) {
+            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+            document.getElementById('page-' + id).classList.remove('hidden');
+            document.querySelectorAll('#mainNav button').forEach(btn => {
+                btn.classList.remove('nav-active');
+                if(btn.id === 'btn-' + id) btn.classList.add('nav-active');
+            });
+            if(id === 'dashboard') renderDashboard();
+            if(id === 'monthly') renderMonthly();
+            if(id === 'target-trend') switchTargetMode(targetMode);
+            if(id === 'target-release') renderTargetRelease();
+            if(id === 'data-entry') populateMfoSelects();
+            if(id === 'manage-mfo') renderMfoList();
+        }
+
+        // --- UPDATED Target Release Logic ---
+        function renderTargetRelease() {
+            populateReleaseMfoSelect();
+            renderReleaseChart();
+            renderReleaseTable();
+            renderConsolidatedReleaseTable();
+        }
+
+        function populateReleaseMfoSelect() {
+            document.getElementById('rMFO').innerHTML = mfos.map(m => `<option value="${m}">${m}</option>`).join('');
+        }
+
+        function renderConsolidatedReleaseTable() {
+            const filterMonth = document.getElementById('releaseFilterMonth').value;
+            const tbody = document.getElementById('consolidatedReleaseBody');
+            const tfoot = document.getElementById('consolidatedReleaseFoot');
+            
+            let branchTotalActual = 0;
+            let branchTotalTarget = 0;
+
+            const rows = mfos.map(mfo => {
+                const monthlyLogs = logs.filter(l => l.name === mfo && l.date.substring(0,7) === filterMonth);
+                const actualTotal = monthlyLogs.reduce((sum, l) => sum + Number(l.disb), 0);
+                const targetObj = releaseTargets.find(r => r.name === mfo && r.period === filterMonth);
+                const targetAmount = targetObj ? Number(targetObj.amount) : 0;
+                
+                // Calculate Daily Avg based on days reported
+                const daysReported = monthlyLogs.length || 1; 
+                const dailyAvg = actualTotal / daysReported;
+                const variance = actualTotal - targetAmount;
+
+                branchTotalActual += actualTotal;
+                branchTotalTarget += targetAmount;
+
+                return `
+                    <tr class="hover:bg-blue-50">
+                        <td class="px-6 py-4 font-bold">${mfo}</td>
+                        <td class="px-6 py-4 text-right">₱${dailyAvg.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td class="px-6 py-4 text-right font-bold text-blue-700">₱${actualTotal.toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right text-slate-500">₱${targetAmount.toLocaleString()}</td>
+                        <td class="px-6 py-4 text-center font-black ${variance >= 0 ? 'text-emerald-600' : 'text-red-500'}">
+                            ${variance >= 0 ? '+' : ''}${variance.toLocaleString()}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = rows;
+            tfoot.innerHTML = `
+                <tr>
+                    <td class="px-6 py-4">BRANCH TOTAL</td>
+                    <td class="px-6 py-4 text-right">-</td>
+                    <td class="px-6 py-4 text-right text-blue-800">₱${branchTotalActual.toLocaleString()}</td>
+                    <td class="px-6 py-4 text-right text-slate-600">₱${branchTotalTarget.toLocaleString()}</td>
+                    <td class="px-6 py-4 text-center ${branchTotalActual >= branchTotalTarget ? 'text-emerald-600' : 'text-red-500'}">
+                        ₱${(branchTotalActual - branchTotalTarget).toLocaleString()}
+                    </td>
+                </tr>
+            `;
+        }
+
+        function renderReleaseTable() {
+            const tbody = document.getElementById('releaseTableBody');
+            tbody.innerHTML = releaseTargets.map((r, i) => {
+                const actual = logs.filter(l => l.name === r.name && l.date.substring(0,7) === r.period).reduce((sum, l) => sum + Number(l.disb), 0);
+                const isAchieved = actual >= Number(r.amount);
+                return `<tr class="hover:bg-slate-50 border-b">
+                    <td class="px-6 py-4 font-bold text-blue-600">${r.period}</td>
+                    <td class="px-6 py-4 font-bold">${r.name}</td>
+                    <td class="px-6 py-4 text-right font-semibold">₱${Number(r.amount).toLocaleString()}</td>
+                    <td class="px-6 py-4 text-center">${isAchieved ? '<span class="badge-success">Achieved</span>' : '<span class="badge-pending">Pending</span>'}</td>
+                    <td class="px-6 py-4 text-center"><button onclick="deleteRelease(${i})" class="text-red-400 font-bold">Remove</button></td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderReleaseChart() {
+            if (chartRelease) chartRelease.destroy();
+            const filterMonth = document.getElementById('releaseFilterMonth').value;
+            
+            const targetData = mfos.map(m => {
+                const t = releaseTargets.find(r => r.name === m && r.period === filterMonth);
+                return t ? Number(t.amount) : 0;
+            });
+            const actualData = mfos.map(m => {
+                return logs.filter(l => l.name === m && l.date.substring(0,7) === filterMonth).reduce((sum, l) => sum + Number(l.disb), 0);
+            });
+
+            chartRelease = new Chart(document.getElementById('releaseChart'), {
+                type: 'bar',
+                data: {
+                    labels: mfos,
+                    datasets: [
+                        { label: 'Monthly Target', data: targetData, backgroundColor: '#cbd5e1', borderRadius: 8 },
+                        { label: 'Monthly Actual', data: actualData, backgroundColor: '#2563eb', borderRadius: 8 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        document.getElementById('releaseForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            releaseTargets.push({
+                period: document.getElementById('rMonth').value,
+                name: document.getElementById('rMFO').value,
+                amount: document.getElementById('rAmount').value
+            });
+            localStorage.setItem('b0861_release_targets', JSON.stringify(releaseTargets));
+            renderTargetRelease(); e.target.reset();
+        });
+
+        function deleteRelease(i) {
+            releaseTargets.splice(i, 1);
+            localStorage.setItem('b0861_release_targets', JSON.stringify(releaseTargets));
+            renderTargetRelease();
+        }
+
+        // --- PRESERVED REMAINING LOGIC ---
+        function renderMonthly() {
+            const months = {};
+            logs.forEach(l => {
+                const mKey = l.date.substring(0, 7);
+                if (!months[mKey]) months[mKey] = { p: 0, cl: 0 };
+                months[mKey].p += Number(l.port);
+                months[mKey].cl += Number(l.clients);
+            });
+            const sortedKeys = Object.keys(months).sort();
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            const portfolioGradient = ctx.createLinearGradient(0, 0, 0, 400);
+            portfolioGradient.addColorStop(0, 'rgba(37, 99, 235, 0.2)');
+            portfolioGradient.addColorStop(1, 'rgba(37, 99, 235, 0)');
+            if (chartTrend) chartTrend.destroy();
+            chartTrend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedKeys.map(k => {
+                        const date = new Date(k + '-01');
+                        return date.toLocaleString('default', { month: 'short', year: 'numeric' });
+                    }),
+                    datasets: [
+                        { label: 'Active Clients', data: sortedKeys.map(k => months[k].cl), borderColor: '#f43f5e', borderWidth: 4, pointBackgroundColor: '#fff', pointRadius: 6, tension: 0.4, yAxisID: 'y1' },
+                        { label: 'Portfolio', data: sortedKeys.map(k => months[k].p), backgroundColor: portfolioGradient, borderColor: '#2563eb', borderWidth: 3, fill: true, tension: 0.4, yAxisID: 'y' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, y1: { position: 'right', beginAtZero: true } } }
+            });
+        }
+
+        function switchTargetMode(mode) {
+            targetMode = mode;
+            const tabA = document.getElementById('tab-annual');
+            const tabM = document.getElementById('tab-monthly');
+            const dateContainer = document.getElementById('targetDateContainer');
+            if (mode === 'annual') {
+                tabA.className = "px-4 py-2 rounded-lg text-sm font-bold transition-all bg-white shadow text-blue-600";
+                tabM.className = "px-4 py-2 rounded-lg text-sm font-bold transition-all text-slate-500";
+                dateContainer.innerHTML = `<input type="number" id="tPeriod" placeholder="Year (YYYY)" min="2020" max="2100" required class="w-full p-2 bg-slate-50 border rounded-lg">`;
+            } else {
+                tabM.className = "px-4 py-2 rounded-lg text-sm font-bold transition-all bg-white shadow text-blue-600";
+                tabA.className = "px-4 py-2 rounded-lg text-sm font-bold transition-all text-slate-500";
+                dateContainer.innerHTML = `<input type="month" id="tPeriod" required class="w-full p-2 bg-slate-50 border rounded-lg">`;
+            }
+            refreshTargetTrend();
+        }
+
+        function refreshTargetTrend() {
+            document.getElementById('tMFO').innerHTML = mfos.map(m => `<option value="${m}">${m}</option>`).join('');
+            renderTargetChart();
+            renderTargetTable();
+        }
+
+        function renderTargetTable() {
+            const tbody = document.getElementById('targetTableBody');
+            const metric = document.getElementById('targetMetric').value;
+            const activeTargets = targetMode === 'annual' ? annualTargets : monthlyTargets;
+            tbody.innerHTML = activeTargets.map((t, idx) => {
+                const actualVal = logs.filter(l => l.name === t.name).sort((a,b) => b.date.localeCompare(a.date))[0]?.[metric] || 0;
+                const isAchieved = Number(actualVal) >= Number(t[metric]);
+                return `<tr class="hover:bg-slate-50 border-b">
+                    <td class="px-6 py-4 font-black text-blue-600">${t.period}</td>
+                    <td class="px-6 py-4 font-bold">${t.name}</td>
+                    <td class="px-6 py-4 text-right font-semibold">₱${Number(t[metric]).toLocaleString()}</td>
+                    <td class="px-6 py-4 text-right font-black text-blue-800">₱${Number(actualVal).toLocaleString()}</td>
+                    <td class="px-6 py-4 text-center">${isAchieved ? '<span class="badge-success">Achieved</span>' : '<span class="badge-pending">Pending</span>'}</td>
+                    <td class="px-6 py-4 text-center"><button onclick="deleteTarget(${idx})" class="text-red-400 font-bold">Remove</button></td>
+                </tr>`;
+            }).join('');
+        }
+
+        function renderTargetChart() {
+            if (chartTarget) chartTarget.destroy();
+            const metric = document.getElementById('targetMetric').value;
+            const activeTargets = targetMode === 'annual' ? annualTargets : monthlyTargets;
+            const targetValues = mfos.map(m => {
+                const t = activeTargets.filter(x => x.name === m).sort((a,b) => b.period.localeCompare(a.period))[0];
+                return t ? Number(t[metric]) : 0;
+            });
+            const actualValues = mfos.map(m => {
+                const a = logs.filter(x => x.name === m).sort((a,b) => b.date.localeCompare(a.date))[0];
+                return a ? Number(a[metric]) : 0;
+            });
+            chartTarget = new Chart(document.getElementById('targetVsActualChart'), {
+                type: 'bar',
+                data: { labels: mfos, datasets: [{ label: 'Target', data: targetValues, backgroundColor: '#e2e8f0' }, { label: 'Actual', data: actualValues, backgroundColor: '#2563eb' }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function renderDashboard() {
+            const date = document.getElementById('dashDate').value;
+            const data = logs.filter(l => l.date === date);
+            const tbody = document.getElementById('dashTableBody');
+            const totals = data.reduce((acc, curr) => {
+                acc.c += Number(curr.clients); acc.p += Number(curr.port);
+                acc.d += Number(curr.disb); acc.cl += Number(curr.coll);
+                return acc;
+            }, {c:0, p:0, d:0, cl:0});
+
+            document.getElementById('statsRibbon').innerHTML = `
+                <div class="bg-white p-5 rounded-2xl border shadow-sm"><p class="text-[10px] font-black uppercase text-slate-400">Clients</p><p class="text-2xl font-black">${totals.c}</p></div>
+                <div class="bg-white p-5 rounded-2xl border-l-4 border-blue-500 shadow-sm"><p class="text-[10px] font-black uppercase text-slate-400">Portfolio</p><p class="text-2xl font-black">₱${totals.p.toLocaleString()}</p></div>
+                <div class="bg-white p-5 rounded-2xl border-l-4 border-orange-500 shadow-sm"><p class="text-[10px] font-black uppercase text-slate-400">Disb.</p><p class="text-2xl font-black">₱${totals.d.toLocaleString()}</p></div>
+                <div class="bg-white p-5 rounded-2xl border-l-4 border-emerald-500 shadow-sm"><p class="text-[10px] font-black uppercase text-slate-400">Coll.</p><p class="text-2xl font-black">₱${totals.cl.toLocaleString()}</p></div>`;
+
+            tbody.innerHTML = data.map(l => `
+                <tr class="hover:bg-slate-50 border-b">
+                    <td class="px-6 py-4 font-bold">${l.name}</td>
+                    <td class="px-6 py-4 text-center font-bold">${l.clients}</td>
+                    <td class="px-6 py-4 text-right">₱${Number(l.port).toLocaleString()}</td>
+                    <td class="px-6 py-4 text-right">₱${Number(l.disb).toLocaleString()}</td>
+                    <td class="px-6 py-4 text-right">₱${Number(l.coll).toLocaleString()}</td>
+                    <td class="px-6 py-4 text-right font-black text-blue-600">₱${Number(l.rev).toLocaleString()}</td>
+                    <td class="px-6 py-4 text-center"><button onclick="deleteEntry(${logs.indexOf(l)})" class="text-red-400 font-bold">Delete</button></td>
+                </tr>`).join('');
+            updateDashCharts(data);
+        }
+
+        function updateDashCharts(data) {
+            if (chartBar) chartBar.destroy();
+            if (chartPie) chartPie.destroy();
+            if (!data.length) return;
+            chartBar = new Chart(document.getElementById('barChart'), {
+                type: 'bar', data: { labels: data.map(d => d.name), datasets: [{ label: 'Portfolio', data: data.map(d => d.port), backgroundColor: '#3b82f6', yAxisID: 'y' }, { label: 'Clients', data: data.map(d => d.clients), backgroundColor: '#cbd5e1', yAxisID: 'y1' }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y1: { position: 'right', grid: { display: false } } } }
+            });
+            chartPie = new Chart(document.getElementById('pieChart'), {
+                type: 'doughnut', data: { labels: data.map(d => d.name), datasets: [{ data: data.map(d => d.clients), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function populateMfoSelects() {
+            document.getElementById('fMFO').innerHTML = mfos.map(m => `<option value="${m}">${m}</option>`).join('');
+        }
+        function renderMfoList() {
+            document.getElementById('mfoList').innerHTML = mfos.map((m, i) => `<div class="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border"><span class="font-bold">${m}</span><button onclick="deleteMfo(${i})" class="text-red-500 font-bold">Remove</button></div>`).join('');
+        }
+        function addMfo() {
+            const val = document.getElementById('newMfoInput').value;
+            if(val) { mfos.push(val); localStorage.setItem('b0861_mfos', JSON.stringify(mfos)); renderMfoList(); document.getElementById('newMfoInput').value=""; }
+        }
+        function deleteMfo(i) { mfos.splice(i, 1); localStorage.setItem('b0861_mfos', JSON.stringify(mfos)); renderMfoList(); }
+        function deleteEntry(i) { logs.splice(i, 1); localStorage.setItem('b0861_logs', JSON.stringify(logs)); renderDashboard(); }
+        function resetAllData() { if(confirm("Permanently delete everything?")) { localStorage.clear(); location.reload(); } }
+
+        document.getElementById('entryForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            logs.push({
+                date: document.getElementById('fDate').value,
+                name: document.getElementById('fMFO').value,
+                clients: document.getElementById('fClients').value,
+                port: document.getElementById('fPort').value,
+                disb: document.getElementById('fDisb').value,
+                coll: document.getElementById('fColl').value,
+                rev: document.getElementById('fRev').value
+            });
+            localStorage.setItem('b0861_logs', JSON.stringify(logs));
+            showPage('dashboard'); e.target.reset();
+        });
+
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('dashDate').value = today;
+        showPage('dashboard');
+    </script>
+</body>
+</html>
